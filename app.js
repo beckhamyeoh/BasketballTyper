@@ -373,14 +373,28 @@ function aiPickOppAction() {
   const distFromHoop = carrierZone - 1; // opp targets zone 1
   const r = Math.random();
   let act;
-  if (distFromHoop <= 1 && r < 0.55) act = 'shoot';
-  else if (r < 0.30) act = 'shoot';
-  else if (r < 0.70) act = 'pass';
-  else act = 'dribble';
+
+  // Distance-based AI: hoist from close, advance the ball from far.
+  if (distFromHoop === 0) {
+    // At their hoop: take the easy bucket
+    act = r < 0.85 ? 'shoot' : 'pass';
+  } else if (distFromHoop === 1) {
+    // Close: usually shoot, sometimes work it
+    act = r < 0.50 ? 'shoot' : (r < 0.80 ? 'pass' : 'dribble');
+  } else if (distFromHoop === 2) {
+    // Mid-range: balanced, mostly setting up
+    act = r < 0.20 ? 'shoot' : (r < 0.65 ? 'pass' : 'dribble');
+  } else {
+    // Far (zone 4 or 5): advance the ball, almost never shoot
+    act = r < 0.05 ? 'shoot' : (r < 0.55 ? 'pass' : 'dribble');
+  }
 
   if (act === 'pass') {
+    // Prefer passing to a teammate closer to their hoop (more advanced)
     const offBall = [0, 1, 2].filter((i) => i !== state.ballOwnerIdx);
-    const target = offBall[Math.floor(Math.random() * offBall.length)];
+    offBall.sort((a, b) => state.oppPlayers[a].zone - state.oppPlayers[b].zone);
+    // 70% chance of advancing pass (lower zone), 30% bail-out pass
+    const target = Math.random() < 0.7 ? offBall[0] : offBall[1];
     state.oppAction = `pass-${target}`;
     state.oppTarget = target;
   } else {
@@ -893,12 +907,19 @@ async function animateAction(success) {
     if (state.action.startsWith('pass-') || state.action === 'dribble') {
       // State has been updated; just sync DOM with CSS transition
       renderPlayers(false);
-      await sleep(550);
+      await sleep(750);
       return;
     }
   } else {
     if (state.action === 'position') return animateOppActionVisual();
-    if (success) return animateBallToDefender();
+    if (success) {
+      // Defense succeeded: show off-ball opp running into position briefly
+      // (the play was developing — you cut it short), THEN the steal/block/intercept.
+      applyMovement();
+      renderPlayers(false);
+      await sleep(480);
+      return animateBallToDefender();
+    }
     return animateOppActionVisual();
   }
 }
@@ -908,7 +929,7 @@ async function animateShot(side, success) {
   if (!ball) return;
   ball.style.left = side === 'user' ? '95%' : '5%';
   ball.style.top = '15%';
-  await sleep(480);
+  await sleep(620);
   if (success) {
     ball.style.top = '50%';
     ball.style.left = side === 'user' ? '98%' : '2%';
@@ -918,7 +939,7 @@ async function animateShot(side, success) {
     ball.style.left = side === 'user' ? '78%' : '22%';
     sounds.clank();
   }
-  await sleep(620);
+  await sleep(780);
 }
 
 async function animateOppActionVisual() {
@@ -929,26 +950,86 @@ async function animateOppActionVisual() {
   if (oa === 'shoot') {
     return animateShot('opp', success);
   }
-  // Pass or dribble: state already updated, sync DOM
+
+  if (oa.startsWith('pass')) {
+    // Visible arc: ball lifts up (off-screen route), then drops to receiver
+    const ball = document.getElementById('ball');
+    if (ball) {
+      const tIdx = state.oppTarget;
+      const tZone = state.oppPlayers[tIdx].zone;
+      const tRow = ROW_OPP[tIdx];
+      ball.style.top = '20%';
+      await sleep(300);
+      if (success) {
+        ball.style.left = `${zoneCenter(tZone)}%`;
+        ball.style.top = `${tRow - 8}%`;
+      } else {
+        const cZone = state.oppPlayers[state.ballOwnerIdx].zone;
+        ball.style.left = `${(zoneCenter(cZone) + zoneCenter(tZone)) / 2}%`;
+        ball.style.top = '60%';
+      }
+    }
+    renderPlayers(false);
+    await sleep(550);
+    return;
+  }
+
+  // Dribble: state already updated, just sync DOM
   renderPlayers(false);
-  await sleep(550);
+  await sleep(750);
 }
 
 async function animateBallToDefender() {
-  // Ball goes to the user defender matched to the opp ball owner
+  // First show what the opp WAS trying to do, then the user defender intercepts/blocks/steals.
   const ball = document.getElementById('ball');
   if (!ball) return;
-  const defenderIdx = state.ballOwnerIdx;
+
+  const oa = state.oppAction;
+  if (oa === 'shoot') {
+    // Opp lifts ball toward their hoop (zone 1 side, left of court)
+    ball.style.left = '12%';
+    ball.style.top = '22%';
+    await sleep(440);
+  } else if (oa && oa.startsWith('pass')) {
+    // Opp launches pass toward intended teammate; ball arcs partway before getting picked off
+    const tIdx = state.oppTarget;
+    const tZone = state.oppPlayers[tIdx].zone;
+    const tRow = ROW_OPP[tIdx];
+    const cZone = state.oppPlayers[state.ballOwnerIdx].zone;
+    const cRow = ROW_OPP[state.ballOwnerIdx];
+    ball.style.left = `${(zoneCenter(cZone) + zoneCenter(tZone)) / 2}%`;
+    ball.style.top = `${Math.min(cRow, tRow) - 18}%`;
+    await sleep(400);
+  } else if (oa === 'dribble') {
+    // Opp tries to push forward briefly before getting stripped
+    const idx = state.ballOwnerIdx;
+    const carrierEl = document.getElementById(`p-o${idx}`);
+    if (carrierEl) {
+      const cZone = state.oppPlayers[idx].zone;
+      const advancedZone = Math.max(1, cZone - 1);
+      carrierEl.style.left = `${zoneCenter(advancedZone)}%`;
+      ball.style.left = `${zoneCenter(advancedZone)}%`;
+      await sleep(380);
+      // Snap carrier back to original spot (state.zone unchanged on steal success)
+      carrierEl.style.left = `${zoneCenter(cZone)}%`;
+    } else {
+      await sleep(320);
+    }
+  }
+
+  // Then the ball is taken by the user defender. For an intercept, that's the defender
+  // matched to the receiver (oppTarget). For block/steal, the one matched to the carrier.
+  const defenderIdx = state.action === 'intercept' ? state.oppTarget : state.ballOwnerIdx;
   const def = state.userPlayers[defenderIdx];
   ball.style.left = `${zoneCenter(def.zone)}%`;
   ball.style.top = `${ROW_USER[defenderIdx] - 8}%`;
-  await sleep(500);
+  await sleep(580);
 }
 
 async function animateMovement() {
   applyMovement();
   renderPlayers(false);
-  await sleep(550);
+  await sleep(780);
 }
 
 // ===== Resolution display =====
