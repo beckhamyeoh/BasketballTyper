@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Code Hoops — Match Prototype</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="game">
+    <!-- Main menu screen -->
+    <div class="menu-screen" id="menuScreen">
+      <h1 class="menu-title">CODE HOOPS</h1>
+      <p class="menu-subtitle">Pick your opponent</p>
+      <div class="teams" id="teams"></div>
+      <div class="menu-footer-actions">
+        <button class="menu-link" id="soundBtn">🔊 Sound: OFF</button>
+        <button class="menu-link" id="resetBtn">🔄 Reset progress</button>
+      </div>
+    </div>
+
+    <!-- Match screen -->
+    <div class="match-screen hidden" id="matchScreen">
+      <!-- HUD -->
+      <div class="hud">
+        <div class="score-block">YOU <span class="score" id="userScore">0</span></div>
+        <div class="center-block">
+          <div class="timer">⏱ <span id="matchTimer">3:00</span></div>
+          <div class="possession" id="possession">⛹ Tip-off!</div>
+        </div>
+        <div class="score-block opp">
+          <span id="oppNameLabel">OPP</span>
+          <span class="score" id="oppScore">0</span>
+        </div>
+      </div>
+
+      <!-- Court -->
+      <div class="court">
+        <div class="hoop left">🏀</div>
+        <div class="field">
+          <div class="zone" data-z="1"><span>Z1</span></div>
+          <div class="zone" data-z="2"><span>Z2</span></div>
+          <div class="zone" data-z="3"><span>Z3</span></div>
+          <div class="zone" data-z="4"><span>Z4</span></div>
+          <div class="zone" data-z="5"><span>Z5</span></div>
+          <div class="entities" id="entities"></div>
+        </div>
+        <div class="hoop right">🏀</div>
+      </div>
+
+      <!-- Action select panel -->
+      <div class="panel" id="actionPanel">
+        <div class="panel-title" id="actionPanelTitle">Pick your action</div>
+        <div class="actions" id="actions"></div>
+        <div class="hint" id="hint"></div>
+      </div>
+
+      <!-- Typing panel -->
+      <div class="panel hidden" id="typingPanel">
+        <div class="typing-header">
+          <div class="panel-title" id="typingTitle">Typing</div>
+          <div class="lang-tag" id="snippetLang">JAVA</div>
+        </div>
+        <div class="snippet" id="snippet"></div>
+        <div class="timer-bar"><div class="timer-fill" id="timerFill"></div></div>
+        <div class="typing-meta">
+          <span>Time left: <span id="timeLeft">10.0</span>s</span>
+          <span>Typos: <span id="typoCount">0</span></span>
+          <span>Speed bonus: +<span id="speedBonus">25</span>pp</span>
+        </div>
+        <div class="hint">Enter to submit · Backspace to fix · missing chars count as typos</div>
+      </div>
+
+      <!-- Resolution panel -->
+      <div class="panel hidden" id="resolutionPanel">
+        <div class="result" id="result"></div>
+        <div class="result-sub" id="resultSub"></div>
+        <div class="math" id="math"></div>
+        <button id="nextBtn">Next turn →</button>
+      </div>
+
+      <!-- End match panel -->
+      <div class="panel hidden" id="endPanel">
+        <div class="end-title result" id="endTitle">WIN!</div>
+        <div class="end-score" id="endScore">YOU 0 — 0 OPP</div>
+        <div class="end-stats" id="endStats"></div>
+        <div class="end-buttons">
+          <button id="menuBtn" class="btn-secondary">← Main menu</button>
+          <button id="rematchBtn">Rematch →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="snippets.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
